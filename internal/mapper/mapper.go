@@ -6,7 +6,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"regexp"
 	"strings"
 	"sync"
 
@@ -14,32 +13,39 @@ import (
 	"github.com/aguiar-sh/tainha/internal/util"
 )
 
-func extractPathParams(path string) []string {
-	re := regexp.MustCompile(`{([^}]+)}`)
-	matches := re.FindAllStringSubmatch(path, -1)
-	params := make([]string, len(matches))
-	for i, match := range matches {
-		params[i] = match[1]
-	}
-	return params
-}
-
 func Map(route config.Route, response []byte) ([]byte, error) {
-	var responseData []map[string]interface{}
+	var responseData interface{}
 	if err := json.Unmarshal(response, &responseData); err != nil {
 		log.Println("Error parsing JSON:", err)
 		return nil, fmt.Errorf("failed to parse response body: %w", err)
 	}
 
-	var wg sync.WaitGroup
-	errChan := make(chan error, len(responseData)*len(route.Mapping))
+	var dataToProcess []map[string]interface{}
+	switch v := responseData.(type) {
+	case []interface{}:
+		dataToProcess = make([]map[string]interface{}, len(v))
+		for i, item := range v {
+			if m, ok := item.(map[string]interface{}); ok {
+				dataToProcess[i] = m
+			} else {
+				return nil, fmt.Errorf("invalid item in array at index %d", i)
+			}
+		}
+	case map[string]interface{}:
+		dataToProcess = []map[string]interface{}{v}
+	default:
+		return nil, fmt.Errorf("unsupported response type: %T", responseData)
+	}
 
-	for i := range responseData {
+	var wg sync.WaitGroup
+	errChan := make(chan error, len(dataToProcess)*len(route.Mapping))
+
+	for i := range dataToProcess {
 		for _, mapping := range route.Mapping {
 			wg.Add(1)
 			go func(item map[string]interface{}, mapping config.RouteMapping) {
 				defer wg.Done()
-				pathParams := extractPathParams(mapping.Path)
+				pathParams := util.ExtractPathParams(mapping.Path)
 
 				for _, param := range pathParams {
 					value, exists := item[param]
@@ -78,7 +84,7 @@ func Map(route config.Route, response []byte) ([]byte, error) {
 						delete(item, param)
 					}
 				}
-			}(responseData[i], mapping)
+			}(dataToProcess[i], mapping)
 		}
 	}
 
