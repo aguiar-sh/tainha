@@ -1,9 +1,18 @@
+config:
+  port: 8000
+  basePath: /api
+
 routes:
   - method: GET
+    route: /posts
     path: /posts
-    service: http://localhost:3000
+    service: localhost:3000
     mapping:
-      - path: /comments/{commentId}
-        service: http://localhost:3000
-        tag: comment
+      - path: /comments?postId={id}
+        service: localhost:3000
+        tag: comments
+        removeKeyMapping: false
+      - path: /users/{userId}
+        service: localhost:3000
+        tag: user
         removeKeyMapping: true

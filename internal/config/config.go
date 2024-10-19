@@ -18,8 +18,14 @@ type Route struct {
 	Mapping []RouteMapping `mapstructure:"mapping"`
 }
 
+type BaseConfig struct {
+	Port     int    `mapstructure:"port" default:"8080"`
+	BasePath string `mapstructure:"basePath" default:"/api"`
+}
+
 type Config struct {
-	Routes []Route `mapstructure:"routes"`
+	BaseConfig BaseConfig `mapstructure:"config"`
+	Routes     []Route    `mapstructure:"routes"`
 }
 
 func LoadConfig(path string) (*Config, error) {
