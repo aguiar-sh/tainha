@@ -16,6 +16,7 @@ type Route struct {
 	Path    string         `mapstructure:"path"`
 	Service string         `mapstructure:"service"`
 	Mapping []RouteMapping `mapstructure:"mapping"`
+	Route   string         `mapstructure:"route"`
 }
 
 type BaseConfig struct {

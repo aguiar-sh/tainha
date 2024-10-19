@@ -54,8 +54,11 @@ func Map(route config.Route, response []byte) ([]byte, error) {
 					}
 
 					valueStr := fmt.Sprintf("%v", value)
-					mapping.Service = util.PathProtocol(mapping.Service)
-					mappedURL := fmt.Sprintf("%s%s%s", mapping.Service, strings.ReplaceAll(mapping.Path, "{"+param+"}", ""), valueStr)
+					path, protocol := util.PathProtocol(mapping.Service)
+
+					fullPath := fmt.Sprintf("%s://%s", protocol, path)
+
+					mappedURL := fmt.Sprintf("%s%s%s", fullPath, strings.ReplaceAll(mapping.Path, "{"+param+"}", ""), valueStr)
 
 					log.Printf("Mapping: %s\n", mappedURL)
 

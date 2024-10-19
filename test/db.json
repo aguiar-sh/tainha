@@ -12,7 +12,11 @@
     { "id": "2", "text": "another comment about post 1", "postId": "4" }
   ],
   "users": [
-    { "id": "1", "name": "John Doe" },
-    { "id": "2", "name": "Marie Doe" }
+    { "id": "1", "name": "John Doe", "companyId": "1" },
+    { "id": "2", "name": "Marie Doe", "companyId": "2" }
+  ],
+  "companies": [
+    { "id": "1", "name": "Company 1" },
+    { "id": "2", "name": "Company 2" }
   ]
 }

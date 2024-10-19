@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 
 	"github.com/aguiar-sh/tainha/internal/config"
@@ -19,14 +20,15 @@ func SetupRouter(cfg *config.Config) (*mux.Router, error) {
 
 	for _, route := range cfg.Routes {
 
-		route.Service = util.PathProtocol(route.Service)
+		path, protocol := util.PathProtocol(route.Service)
+		servicePath := fmt.Sprintf("%s://%s", protocol, path)
 
-		reverseProxy, err := proxy.NewReverseProxy(route.Service)
+		reverseProxy, err := proxy.NewReverseProxy(servicePath)
 		if err != nil {
 			log.Fatalf("Erro ao criar proxy para %s: %v", route.Path, err)
 		}
 
-		fullPath := fmt.Sprintf("%s%s", cfg.BaseConfig.BasePath, route.Path)
+		fullPath := fmt.Sprintf("%s%s", cfg.BaseConfig.BasePath, route.Route)
 
 		r.HandleFunc(fullPath, func(w http.ResponseWriter, req *http.Request) {
 			log.Println("Request received for:", req.URL.Path)
@@ -47,8 +49,18 @@ func SetupRouter(cfg *config.Config) (*mux.Router, error) {
 				targetPath = strings.Replace(targetPath, fmt.Sprintf("{%s}", param), value, -1)
 			}
 
-			req.URL.Path = targetPath
+			// Parse the target path to separate path and query
+			parsedURL, err := url.Parse(targetPath)
+			if err != nil {
+				log.Printf("Error parsing target path: %v", err)
+				http.Error(w, "Internal server error", http.StatusInternalServerError)
+				return
+			}
+
+			req.URL.Path = parsedURL.Path
+			req.URL.RawQuery = parsedURL.RawQuery
 			req.URL.Host = route.Service
+			req.URL.Scheme = protocol
 
 			// Capture the response from the reverse proxy
 			rec := httptest.NewRecorder()
