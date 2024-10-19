@@ -15,3 +15,23 @@ _need a logo_
 - [x] **Open Source:** Contribute and customize Tainha to fit your needs.
 
 We are on developing, feel free to collaborate
+
+## 🚀 How to test
+
+To test the application, you can use the *json-server* with `test/db.json` file.
+
+```bash
+npx json-server --watch test/db.json --port 3000
+```
+
+Then, you can start the Tainha application with the following command:
+
+```bash
+make run
+```
+
+or
+
+```bash
+go run cmd/gateway/main.go
+```
