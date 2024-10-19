@@ -12,29 +12,40 @@ import (
 
 func main() {
 	configPath := flag.String("config", "./config/config.yaml", "Path to configuration file")
-	addr := flag.String("addr", ":8080", "Address to listen on")
-	flag.Parse()
 
 	cfg, err := config.LoadConfig(*configPath)
 	if err != nil {
-		log.Fatalf("Erro ao carregar configuração: %v", err)
+		log.Fatalf("Error loading configuration: %v", err)
 	}
 
 	r, err := router.SetupRouter(cfg)
 	if err != nil {
-		log.Fatalf("Erro ao configurar roteador: %v", err)
+		log.Fatalf("Error setting up router: %v", err)
 	}
+
+	port := fmt.Sprintf(":%d", cfg.BaseConfig.Port)
+	addr := flag.String("addr", port, "Address to listen on")
+	flag.Parse()
+
+	fmt.Print("\n")
 
 	// Log all routes
 	for _, route := range cfg.Routes {
-		log.Printf("Route: Method=%s, Path=%s, Service=%s", route.Method, route.Path, route.Service)
+
+		fullPath := fmt.Sprintf("%s%s", cfg.BaseConfig.BasePath, route.Path)
+
+		log.Println("\033[1;32mRoutes:\033[0m")
+
+		log.Printf("\033[1;34m| %s - %s -> %s%s\033[0m", route.Method, fullPath, route.Service, route.Path)
+		log.Println("\033[1;33m | Mappings: \033[0m")
+
 		for _, mapping := range route.Mapping {
-			log.Printf("  Mapping: Path=%s, Service=%s, Tag=%s", mapping.Path, mapping.Service, mapping.Tag)
+			log.Printf("\033[1;33m | %s - %s%s\033[0m\n\n", mapping.Tag, mapping.Service, mapping.Path)
 		}
 	}
 
-	fmt.Printf("API Gateway escutando em %s\n", *addr)
+	log.Printf("API Gateway listening on %s\n\n", *addr)
 	if err := http.ListenAndServe(*addr, r); err != nil {
-		log.Fatalf("Erro ao iniciar servidor: %v", err)
+		log.Fatalf("Error starting server: %v", err)
 	}
 }

@@ -2,48 +2,49 @@ package router
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
-	"regexp"
 
 	"github.com/aguiar-sh/tainha/internal/config"
 	"github.com/aguiar-sh/tainha/internal/mapper"
 	"github.com/aguiar-sh/tainha/internal/proxy"
+	"github.com/aguiar-sh/tainha/internal/util"
 	"github.com/gorilla/mux"
 )
-
-func extractPathParams(path string) []string {
-	re := regexp.MustCompile(`{([^}]+)}`)
-	matches := re.FindAllStringSubmatch(path, -1)
-	params := make([]string, len(matches))
-	for i, match := range matches {
-		params[i] = match[1]
-	}
-	return params
-}
 
 func SetupRouter(cfg *config.Config) (*mux.Router, error) {
 	r := mux.NewRouter()
 
 	for _, route := range cfg.Routes {
+
+		route.Service = util.PathProtocol(route.Service)
+
 		reverseProxy, err := proxy.NewReverseProxy(route.Service)
 		if err != nil {
 			log.Fatalf("Erro ao criar proxy para %s: %v", route.Path, err)
 		}
 
-		r.HandleFunc(route.Path, func(w http.ResponseWriter, req *http.Request) {
+		fullPath := fmt.Sprintf("%s%s", cfg.BaseConfig.BasePath, route.Path)
+
+		r.HandleFunc(fullPath, func(w http.ResponseWriter, req *http.Request) {
 			log.Println("Request received for:", req.URL.Path)
+
+			req.URL.Path = route.Path
 
 			// Capture the response from the reverse proxy
 			rec := httptest.NewRecorder()
 			reverseProxy.ServeHTTP(rec, req)
 
 			// Read the response body
-			respBody, err := io.ReadAll(rec.Body)
-			if err != nil {
-				http.Error(w, "Failed to read response body", http.StatusInternalServerError)
+			respBody := rec.Body.Bytes()
+
+			if rec.Code < 200 || rec.Code >= 300 {
+				for k, v := range rec.Header() {
+					w.Header()[k] = v
+				}
+				w.WriteHeader(rec.Code)
+				w.Write(respBody)
 				return
 			}
 
@@ -79,21 +80,6 @@ func SetupRouter(cfg *config.Config) (*mux.Router, error) {
 				log.Printf("Warning: not all bytes were written. Expected %d, wrote %d", len(response), n)
 			}
 		}).Methods(route.Method)
-
-		// Implementar mapeamentos
-		for _, m := range route.Mapping {
-			mappedPath := m.Path
-			mappedProxy, err := proxy.NewReverseProxy(m.Service)
-			if err != nil {
-				log.Fatalf("Erro ao criar proxy para mapeamento %s: %v", m.Path, err)
-			}
-
-			r.HandleFunc(mappedPath, func(w http.ResponseWriter, req *http.Request) {
-				fmt.Println("Request received for:", req.URL.Path)
-				// Opcional: Adicionar lógica com base na tag
-				mappedProxy.ServeHTTP(w, req)
-			}).Methods(route.Method)
-		}
 	}
 
 	return r, nil
