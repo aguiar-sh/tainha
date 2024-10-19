@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 
 	"github.com/aguiar-sh/tainha/internal/config"
 	"github.com/aguiar-sh/tainha/internal/mapper"
@@ -30,7 +31,24 @@ func SetupRouter(cfg *config.Config) (*mux.Router, error) {
 		r.HandleFunc(fullPath, func(w http.ResponseWriter, req *http.Request) {
 			log.Println("Request received for:", req.URL.Path)
 
-			req.URL.Path = route.Path
+			// Extract path parameters using the utility function
+			params := util.ExtractPathParams(route.Path)
+			vars := mux.Vars(req)
+
+			// Construct the target path dynamically
+			targetPath := route.Path
+			for _, param := range params {
+				value, ok := vars[param]
+				if !ok {
+					http.Error(w, fmt.Sprintf("Parameter %s not found in request path", param), http.StatusBadRequest)
+					return
+				}
+				// Replace the placeholder with the actual value
+				targetPath = strings.Replace(targetPath, fmt.Sprintf("{%s}", param), value, -1)
+			}
+
+			req.URL.Path = targetPath
+			req.URL.Host = route.Service
 
 			// Capture the response from the reverse proxy
 			rec := httptest.NewRecorder()
