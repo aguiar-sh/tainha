@@ -6,12 +6,13 @@ _need a logo_
 
 ## 🌟 Features
 
-- [x] **Flexible Routing:** Direct requests to multiple backend services based on defined routes.
-- [x] **Simple Configuration:** Use YAML files to configure routes and mappings intuitively.
-- [ ] **Efficient Reverse Proxy:** Implemented with `httputil.ReverseProxy` for optimized performance.
-- [x] **Dynamic Parameters Support:** Handle routes with dynamic parameters like `{companyId}`.
-- [ ] **Customizable Middleware:** Easily add functionalities such as authentication, logging, and rate limiting.
-- [ ] **Scalability:** Designed to handle a large volume of requests efficiently.
+- [x] **Simple Routing:** Direct requests to backend services based on defined routes.
+- [x] **Request with Parameters:** Handle routes with dynamic parameters like `{userId}`.
+- [x] **Request with Queries:** Support query parameters in routes and mappings.
+- [x] **Circular Requesting:** Allow chained API calls between services.
+- [ ] **Mapping Cache:** Implement caching for mapped responses to improve performance.
+- [ ] **Rate Limiting:** Control the rate of incoming requests to protect backend services.
+- [ ] **JWT Validation with JWK:** Authenticate requests using JSON Web Tokens and JSON Web Keys.
 - [x] **Open Source:** Contribute and customize Tainha to fit your needs.
 
 We are on developing, feel free to collaborate
