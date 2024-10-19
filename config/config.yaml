@@ -5,14 +5,49 @@ config:
 routes:
   - method: GET
     route: /posts
-    path: /posts
     service: localhost:3000
+    path: /posts
     mapping:
       - path: /comments?postId={id}
         service: localhost:3000
         tag: comments
         removeKeyMapping: false
-      - path: /users/{userId}
-        service: localhost:3000
+      - path: /api/users/{userId}
+        service: localhost:8000
         tag: user
         removeKeyMapping: true
+
+  - method: GET
+    route: /users/{userId}
+    service: localhost:3000
+    path: /users/{userId}
+    mapping:
+      - path: /companies?id={companyId}
+        service: localhost:3000
+        tag: company
+        removeKeyMapping: true
+
+  - method: GET
+    route: /companies
+    service: localhost:3000
+    path: /companies
+    mapping:
+      - path: /users?companyId={id}
+        service: localhost:3000
+        tag: users
+        removeKeyMapping: true
+
+  - method: GET
+    route: /companies/{companyId}/users
+    service: localhost:3000
+    path: /users?companyId={companyId}
+
+  - method: GET
+    route: /companies/{companyId}
+    service: localhost:3000
+    path: /companies/{companyId}
+    mapping:
+      - path: /users?companyId={id}
+        service: localhost:3000
+        tag: users
+        removeKeyMapping: false

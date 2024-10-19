@@ -29,20 +29,24 @@ func main() {
 
 	fmt.Print("\n")
 
+	log.Println("\033[1;32mRoutes:\033[0m")
 	// Log all routes
 	for _, route := range cfg.Routes {
 
 		fullPath := fmt.Sprintf("%s%s", cfg.BaseConfig.BasePath, route.Path)
 
-		log.Println("\033[1;32mRoutes:\033[0m")
-
 		log.Printf("\033[1;34m| %s - %s -> %s%s\033[0m", route.Method, fullPath, route.Service, route.Path)
-		log.Println("\033[1;33m | Mappings: \033[0m")
+
+		if len(route.Mapping) > 0 {
+			log.Println("\033[1;33m | Mappings: \033[0m")
+		}
 
 		for _, mapping := range route.Mapping {
-			log.Printf("\033[1;33m | %s - %s%s\033[0m\n\n", mapping.Tag, mapping.Service, mapping.Path)
+			log.Printf("\033[1;33m  | %s - %s%s\033[0m\n", mapping.Tag, mapping.Service, mapping.Path)
 		}
 	}
+
+	fmt.Print("\n")
 
 	log.Printf("API Gateway listening on %s\n\n", *addr)
 	if err := http.ListenAndServe(*addr, r); err != nil {
