@@ -1,0 +1,9 @@
+routes:
+  - method: GET
+    path: /posts
+    service: http://localhost:3000
+    mapping:
+      - path: /comments/{commentId}
+        service: http://localhost:3000
+        tag: comment
+        removeKeyMapping: true
