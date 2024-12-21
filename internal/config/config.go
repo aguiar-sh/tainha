@@ -17,6 +17,7 @@ type Route struct {
 	Service string         `mapstructure:"service"`
 	Mapping []RouteMapping `mapstructure:"mapping"`
 	Route   string         `mapstructure:"route"`
+	IsSSE   bool           `mapstructure:"isSSE,omitempty" yaml:"isSSE,omitempty"`
 }
 
 type BaseConfig struct {

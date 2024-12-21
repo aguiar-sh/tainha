@@ -51,3 +51,11 @@ routes:
         service: localhost:3000
         tag: users
         removeKeyMapping: false
+
+  - method: GET
+    route: /sse
+    service: localhost:3000
+    path: /sse
+    isSSE: true
+
+

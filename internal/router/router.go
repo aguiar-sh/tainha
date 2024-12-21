@@ -57,14 +57,22 @@ func SetupRouter(cfg *config.Config) (*mux.Router, error) {
 				return
 			}
 
-			req.URL.Path = parsedURL.Path
-			req.URL.RawQuery = parsedURL.RawQuery
-			req.URL.Host = route.Service
-			req.URL.Scheme = protocol
+			proxyReq := req.Clone(req.Context())
+			proxyReq.URL.Path = parsedURL.Path
+			proxyReq.URL.RawQuery = parsedURL.RawQuery
+			proxyReq.URL.Host = path
+			proxyReq.URL.Scheme = protocol
+			proxyReq.Host = path
 
-			// Capture the response from the reverse proxy
+			// For routes without mapping, use direct proxy
+			if route.IsSSE {
+				reverseProxy.ServeHTTP(w, proxyReq)
+				return
+			}
+
+			// Only use recorder if we need to map the response
 			rec := httptest.NewRecorder()
-			reverseProxy.ServeHTTP(rec, req)
+			reverseProxy.ServeHTTP(rec, proxyReq)
 
 			// Read the response body
 			respBody := rec.Body.Bytes()

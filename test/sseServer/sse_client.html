@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SSE Test Client</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen p-8">
+    <div class="max-w-3xl mx-auto">
+        <!-- Header -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h1 class="text-2xl font-bold text-gray-800">SSE Test Client</h1>
+            <p class="text-gray-600 mt-2">Listening for events from: <span class="font-mono text-sm bg-gray-100 px-2 py-1 rounded">http://localhost:8000/api/sse</span></p>
+            <div id="connection-status" class="mt-4">
+                <span class="inline-flex items-center">
+                    <span id="status-dot" class="h-3 w-3 bg-yellow-400 rounded-full mr-2"></span>
+                    <span id="status-text" class="text-sm text-gray-600">Connecting...</span>
+                </span>
+            </div>
+        </div>
+
+        <!-- Events Container -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-semibold text-gray-800">Events</h2>
+                <button onclick="clearEvents()" class="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded">
+                    Clear
+                </button>
+            </div>
+            <div id="events" class="space-y-2 max-h-[600px] overflow-y-auto"></div>
+        </div>
+    </div>
+
+    <script>
+        const eventsDiv = document.getElementById('events');
+        const statusDot = document.getElementById('status-dot');
+        const statusText = document.getElementById('status-text');
+        
+        function updateConnectionStatus(connected) {
+            statusDot.className = `h-3 w-3 rounded-full mr-2 ${connected ? 'bg-green-500' : 'bg-red-500'}`;
+            statusText.textContent = connected ? 'Connected' : 'Disconnected';
+            statusText.className = `text-sm ${connected ? 'text-green-600' : 'text-red-600'}`;
+        }
+
+        function clearEvents() {
+            eventsDiv.innerHTML = '';
+        }
+
+        // Connect to SSE endpoint
+        const eventSource = new EventSource('http://localhost:8000/api/sse');
+
+        // Listen for messages
+        eventSource.onmessage = function(event) {
+            try {
+                const data = JSON.parse(event.data);
+                const newEvent = document.createElement('div');
+                newEvent.className = 'p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors';
+                
+                newEvent.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div class="text-gray-800">${data.message}</div>
+                        <div class="text-xs text-gray-500 ml-4">${new Date(data.time).toLocaleTimeString()}</div>
+                    </div>
+                `;
+                
+                eventsDiv.prepend(newEvent);
+            } catch (e) {
+                console.error('Error parsing event data:', e);
+            }
+        };
+
+        // Handle connection open
+        eventSource.onopen = function() {
+            updateConnectionStatus(true);
+        };
+
+        // Handle errors
+        eventSource.onerror = function(error) {
+            console.error('SSE Error:', error);
+            updateConnectionStatus(false);
+            
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'p-3 bg-red-50 text-red-700 rounded-lg';
+            errorDiv.textContent = 'Connection error';
+            eventsDiv.prepend(errorDiv);
+        };
+    </script>
+</body>
+</html>
