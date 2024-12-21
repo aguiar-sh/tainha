@@ -1,12 +1,16 @@
 config:
   port: 8000
   basePath: /api
+  auth:
+    secret: "your-secret-key-here"
+    defaultProtected: true
 
 routes:
   - method: GET
     route: /posts
     service: localhost:3000
     path: /posts
+    public: true
     mapping:
       - path: /comments?postId={id}
         service: localhost:3000

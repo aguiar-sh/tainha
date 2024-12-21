@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/aguiar-sh/tainha/internal/auth"
 	"github.com/aguiar-sh/tainha/internal/config"
 	"github.com/aguiar-sh/tainha/internal/mapper"
 	"github.com/aguiar-sh/tainha/internal/proxy"
@@ -30,7 +31,7 @@ func SetupRouter(cfg *config.Config) (*mux.Router, error) {
 
 		fullPath := fmt.Sprintf("%s%s", cfg.BaseConfig.BasePath, route.Route)
 
-		r.HandleFunc(fullPath, func(w http.ResponseWriter, req *http.Request) {
+		handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			log.Println("Request received for:", req.URL.Path)
 
 			// Extract path parameters using the utility function
@@ -117,7 +118,14 @@ func SetupRouter(cfg *config.Config) (*mux.Router, error) {
 			} else if n != len(response) {
 				log.Printf("Warning: not all bytes were written. Expected %d, wrote %d", len(response), n)
 			}
-		}).Methods(route.Method)
+		})
+
+		// Apply JWT middleware based on configuration
+		if cfg.BaseConfig.Auth.DefaultProtected && !route.Public {
+			handler = http.HandlerFunc(auth.ValidateJWT(cfg.BaseConfig.Auth.Secret, handler).ServeHTTP)
+		}
+
+		r.Handle(fullPath, handler).Methods(route.Method)
 	}
 
 	return r, nil

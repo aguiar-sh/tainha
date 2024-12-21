@@ -4,6 +4,17 @@ import (
 	"github.com/spf13/viper"
 )
 
+type AuthConfig struct {
+	Secret           string `yaml:"secret"`
+	DefaultProtected bool   `yaml:"defaultProtected"`
+}
+
+type BaseConfig struct {
+	Port     int        `mapstructure:"port" default:"8080"`
+	BasePath string     `mapstructure:"basePath" default:"/api"`
+	Auth     AuthConfig `mapstructure:"auth"`
+}
+
 type RouteMapping struct {
 	Path             string `mapstructure:"path"`
 	Service          string `mapstructure:"service"`
@@ -18,11 +29,7 @@ type Route struct {
 	Mapping []RouteMapping `mapstructure:"mapping"`
 	Route   string         `mapstructure:"route"`
 	IsSSE   bool           `mapstructure:"isSSE,omitempty" yaml:"isSSE,omitempty"`
-}
-
-type BaseConfig struct {
-	Port     int    `mapstructure:"port" default:"8080"`
-	BasePath string `mapstructure:"basePath" default:"/api"`
+	Public  bool           `mapstructure:"public,omitempty" yaml:"public,omitempty"`
 }
 
 type Config struct {
