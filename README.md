@@ -1,6 +1,4 @@
-# Tainha API Gateway
-
-_need a logo_
+![Tainha logo](https://github.com/user-attachments/assets/a1286b71-5b0b-4d1e-90c6-177dd9ca5fe5)
 
 **Tainha** is an open-source API Gateway developed in Go (Golang), inspired by the rich culture of Florianópolis. Designed to be an affordable and efficient solution, Tainha simplifies routing HTTP requests to various backend services with ease and flexibility.
 
@@ -20,6 +18,7 @@ We are on developing, feel free to collaborate
 ## 🚀 How to test
 
 To test the application, you can use the *json-server* with `test/db.json` file.
+
 
 ```bash
 npx json-server --watch test/db.json --port 3000
