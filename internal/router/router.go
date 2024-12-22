@@ -16,8 +16,26 @@ import (
 	"github.com/gorilla/mux"
 )
 
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, Authorization, X-CSRF-Token")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		w.Header().Set("Access-Control-Expose-Headers", "Content-Type")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 func SetupRouter(cfg *config.Config) (*mux.Router, error) {
 	r := mux.NewRouter()
+	r.Use(corsMiddleware)
 
 	for _, route := range cfg.Routes {
 
@@ -120,12 +138,23 @@ func SetupRouter(cfg *config.Config) (*mux.Router, error) {
 			}
 		})
 
-		// Apply JWT middleware based on configuration
-		if cfg.BaseConfig.Auth.DefaultProtected && !route.Public {
-			handler = http.HandlerFunc(auth.ValidateJWT(cfg.BaseConfig.Auth.Secret, handler).ServeHTTP)
+		if route.IsSSE {
+			originalHandler := handler
+			handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Access-Control-Allow-Origin", "*")
+				w.Header().Set("Access-Control-Allow-Credentials", "true")
+				w.Header().Set("Access-Control-Expose-Headers", "Content-Type")
+
+				// Handle SSE stream
+				originalHandler.ServeHTTP(w, r)
+			})
 		}
 
-		r.Handle(fullPath, handler).Methods(route.Method)
+		if cfg.BaseConfig.Auth.DefaultProtected && !route.Public {
+			handler = auth.ValidateJWT(cfg.BaseConfig.Auth.Secret, handler).ServeHTTP
+		}
+
+		r.Handle(fullPath, handler).Methods(route.Method, "OPTIONS")
 	}
 
 	return r, nil

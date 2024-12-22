@@ -58,7 +58,7 @@ routes:
 
   - method: GET
     route: /sse
-    service: localhost:3000
+    service: localhost:3001
     path: /sse
     isSSE: true
 

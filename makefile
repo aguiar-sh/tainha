@@ -5,3 +5,8 @@ run:
 sse-server:
 	@echo "Starting SSE test server on :3000/sse"
 	@go run test/sseServer/sse_server.go
+
+run-sse:
+	@go run test/sseServer/sse_server.go -port=${PORT}
+
+.PHONY: run run-sse

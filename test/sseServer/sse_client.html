@@ -3,9 +3,30 @@
 <head>
     <title>SSE Test Client</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jwt-decode/4.0.0/jwt-decode.umd.js"></script>
 </head>
 <body class="bg-gray-100 min-h-screen p-8">
     <div class="max-w-3xl mx-auto">
+        <!-- JWT Form -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h3 class="text-lg font-semibold mb-4">JWT Configuration</h3>
+            <form id="jwtForm" class="space-y-4">
+                <div class="flex items-center space-x-4">
+                    <div>
+                        <label class="block text-sm text-gray-600">Name:</label>
+                        <input type="text" id="name" value="user" class="mt-1 px-3 py-2 border rounded-md" />
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-600">Role:</label>
+                        <input type="text" id="role" value="adm" class="mt-1 px-3 py-2 border rounded-md" />
+                    </div>
+                    <button type="submit" class="mt-6 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">
+                        Connect SSE
+                    </button>
+                </div>
+            </form>
+        </div>
+
         <!-- Header -->
         <div class="bg-white rounded-lg shadow-md p-6 mb-6">
             <h1 class="text-2xl font-bold text-gray-800">SSE Test Client</h1>
@@ -34,55 +55,153 @@
         const eventsDiv = document.getElementById('events');
         const statusDot = document.getElementById('status-dot');
         const statusText = document.getElementById('status-text');
-        
+        let abortController = null;
+    
         function updateConnectionStatus(connected) {
             statusDot.className = `h-3 w-3 rounded-full mr-2 ${connected ? 'bg-green-500' : 'bg-red-500'}`;
             statusText.textContent = connected ? 'Connected' : 'Disconnected';
             statusText.className = `text-sm ${connected ? 'text-green-600' : 'text-red-600'}`;
         }
-
+    
         function clearEvents() {
             eventsDiv.innerHTML = '';
         }
-
-        // Connect to SSE endpoint
-        const eventSource = new EventSource('http://localhost:8000/api/sse');
-
-        // Listen for messages
-        eventSource.onmessage = function(event) {
+    
+        async function generateJWT(name, role) {
+            const header = {
+                alg: 'HS256',
+                typ: 'JWT'
+            };
+            const payload = {
+                name: name,
+                role: role,
+                exp: Math.floor(Date.now() / 1000) + 3600
+            };
+    
+            // URL-safe base64 encode
+            function base64UrlEncode(str) {
+                return btoa(JSON.stringify(str))
+                    .replace(/\+/g, '-')
+                    .replace(/\//g, '_')
+                    .replace(/=+$/, '');
+            }
+    
+            const encodedHeader = base64UrlEncode(header);
+            const encodedPayload = base64UrlEncode(payload);
+    
+            const signatureInput = `${encodedHeader}.${encodedPayload}`;
+            const encoder = new TextEncoder();
+            const data = encoder.encode(signatureInput);
+            const secret = encoder.encode('your-secret-key-here');
+    
+            const signature = await crypto.subtle.sign(
+                'HMAC',
+                await crypto.subtle.importKey(
+                    'raw',
+                    secret,
+                    { name: 'HMAC', hash: 'SHA-256' },
+                    false,
+                    ['sign']
+                ),
+                data
+            );
+    
+            const signatureBase64 = btoa(String.fromCharCode(...new Uint8Array(signature)))
+                .replace(/\+/g, '-')
+                .replace(/\//g, '_')
+                .replace(/=+$/, '');
+    
+            return `${encodedHeader}.${encodedPayload}.${signatureBase64}`;
+        }
+    
+        document.getElementById('jwtForm').onsubmit = async function(e) {
+            e.preventDefault();
+            
+            if (abortController) {
+                abortController.abort();
+            }
+    
+            const name = document.getElementById('name').value || 'user';
+            const role = document.getElementById('role').value || 'adm';
+            const jwt = await generateJWT(name, role);
+    
+            console.log('Generated JWT:', jwt);
+    
+            abortController = new AbortController();
+            const signal = abortController.signal;
+    
             try {
-                const data = JSON.parse(event.data);
-                const newEvent = document.createElement('div');
-                newEvent.className = 'p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors';
-                
-                newEvent.innerHTML = `
-                    <div class="flex justify-between items-start">
-                        <div class="text-gray-800">${data.message}</div>
-                        <div class="text-xs text-gray-500 ml-4">${new Date(data.time).toLocaleTimeString()}</div>
-                    </div>
-                `;
-                
-                eventsDiv.prepend(newEvent);
-            } catch (e) {
-                console.error('Error parsing event data:', e);
+                const response = await fetch('http://localhost:8000/api/sse', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${jwt}`
+                    },
+                    signal
+                });
+    
+                if (!response.ok) {
+                    throw new Error(`Connection failed: ${response.statusText}`);
+                }
+    
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+    
+                async function readStream() {
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+    
+                        const chunk = decoder.decode(value, { stream: true });
+                        chunk.trim().split('\n').forEach(line => {
+                            if (line.startsWith('data:')) {
+                                const data = line.replace('data:', '').trim();
+                                try {
+                                    const parsed = JSON.parse(data);
+                                    addEvent(parsed);
+                                } catch (err) {
+                                    console.warn('Failed to parse SSE data:', err);
+                                }
+                            }
+                        });
+                    }
+                }
+    
+                updateConnectionStatus(true);
+                await readStream();
+    
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    addSystemEvent('Connection manually closed');
+                } else {
+                    console.error('SSE Error:', error);
+                    addSystemEvent(`Error: ${error.message}`, true);
+                }
+                updateConnectionStatus(false);
             }
         };
-
-        // Handle connection open
-        eventSource.onopen = function() {
-            updateConnectionStatus(true);
-        };
-
-        // Handle errors
-        eventSource.onerror = function(error) {
-            console.error('SSE Error:', error);
-            updateConnectionStatus(false);
-            
-            const errorDiv = document.createElement('div');
-            errorDiv.className = 'p-3 bg-red-50 text-red-700 rounded-lg';
-            errorDiv.textContent = 'Connection error';
-            eventsDiv.prepend(errorDiv);
-        };
+    
+        function addEvent(data) {
+            const newEvent = document.createElement('div');
+            newEvent.className = 'p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors';
+    
+            newEvent.innerHTML = `
+                <div class="flex justify-between items-start">
+                    <div class="text-gray-800">
+                        ${data.message || 'No message'}<br>
+                        <span class="text-sm text-gray-600">Name: ${data.name || 'N/A'}, Role: ${data.role || 'N/A'}</span>
+                    </div>
+                    <div class="text-xs text-gray-500 ml-4">${new Date().toLocaleTimeString()}</div>
+                </div>
+            `;
+            eventsDiv.prepend(newEvent);
+        }
+    
+        function addSystemEvent(message, isError = false) {
+            const newEvent = document.createElement('div');
+            newEvent.className = `p-2 rounded-lg ${isError ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-600'}`;
+            newEvent.textContent = `[SYSTEM] ${message}`;
+            eventsDiv.prepend(newEvent);
+        }
     </script>
 </body>
 </html>
